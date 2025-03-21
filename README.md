@@ -1,82 +1,62 @@
-# Cameras Pose Optimization
+# Camera Frustum Volume Coverage Optimization
 
-This project helps optimize cameras positions on a robot to maximize coverage while maintaining required overlap between cameras' fields of view. It visualizes camera frustums and calculates overlap volumes between multiple cameras to aid in optimal placement.
+This project provides tools for calculating and optimizing the volume coverage of multiple camera frustums in 3D space. It includes functionality for:
 
-## Overview
+- Computing individual camera frustum volumes
+- Computing the intersection volumes between multiple camera frustums
+- Calculating total coverage volume using the inclusion-exclusion principle
+- Testing and verification tools for volume calculations
 
-The application provides a 3D visualization of:
-- Camera positions and their viewing frustums
-- Robot body representation
-- Coordinate system with appropriate markers
-- Overlap volumes between camera frustums
+## Features
 
-It also calculates and reports statistics about the overlapping regions, which is useful for ensuring proper coverage and redundancy in multi-camera systems.
+- Accurate frustum volume calculation based on camera parameters
+- Estimation of intersection volumes based on camera positions and orientations
+- Visualization of camera frustums in 3D space
+- Test suite for verifying volume calculations with known ground truth
 
-## Getting Started
+## Requirements
 
-### Prerequisites
-
-- CMake (>= 3.1)
-- CGAL library with Qt5 support
-- yaml-cpp library
 - C++17 compatible compiler
-
-On Ubuntu/Debian, you can install the dependencies with:
-```bash
-sudo apt-get update
-sudo apt-get install build-essential cmake libcgal-dev libcgal-qt5-dev libyaml-cpp-dev qtbase5-dev
-```
-
-On macOS with Homebrew:
-```bash
-brew install cmake cgal yaml-cpp qt@5
-```
-
-### Cloning the Repository
-
-```bash
-# Clone the repository
-git clone https://github.com/TarekTaha/cameras-pose-optimization.git
-
-# Navigate to the project directory
-cd cameras-pose-optimization
-```
+- CMake 3.1 or higher
+- CGAL with Qt5 support
+- yaml-cpp library
 
 ## Building the Project
 
 ```bash
-# Create a build directory
 mkdir build
 cd build
-
-# Generate build files
 cmake ..
-
-# Compile the project
-make -j$(nproc)  # Use multiple cores for faster compilation
+make
 ```
 
-## Running the Application
+## Running the Tests
 
-1. Ensure you have a configuration file in YAML format (see `config/default_config.yaml` for an example)
-2. Run the program:
+After building, you can run the volume tests to verify the calculations:
+
 ```bash
-# From the build directory
-./cameras_optimizer ../config/default_config.yaml
-
-# Or specify a different configuration file
-./cameras_optimizer /path/to/your/config.yaml
+cd build
+./volume_test
 ```
 
-### Interacting with the 3D Visualization
+You can also run specific test cases:
 
-When the application opens the visualization window:
-- Left-click and drag to rotate the view
-- Right-click and drag to pan
-- Scroll to zoom in and out
-- Press 'c' to center the view
-- Press 'w' to toggle between wireframe and solid mode
-- Press 's' to save a screenshot
+```bash
+./volume_test single    # Test single camera volume
+./volume_test precise   # Test precise overlap configurations
+./volume_test two       # Test two-camera scenarios
+./volume_test three     # Test three-camera scenarios
+./volume_test all       # Run all tests
+```
+
+## Main Application
+
+The main application optimizes camera placements to maximize coverage:
+
+```bash
+cd build
+./cameras_optimizer ../config/default_config.yaml
+```
 
 ## Configuration File Format
 

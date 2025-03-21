@@ -1,46 +1,41 @@
-#include <CGAL/Simple_cartesian.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/draw_surface_mesh.h>
-#include <CGAL/Polygon_mesh_processing/compute_normal.h>
-#include "config_reader.hpp"
 #include <iostream>
-#include <cmath>
-#include <CGAL/Polyhedron_3.h>
+#include <fstream>
+#include <string>
+#include <vector>
+#include "config_reader.hpp"
+#include <CGAL/Qt/Basic_viewer_qt.h>
+#include <CGAL/draw_polyhedron.h>
+#include <CGAL/draw_surface_mesh.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
 #include <CGAL/Nef_polyhedron_3.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Polyhedron_incremental_builder_3.h>
 #include <CGAL/convex_decomposition_3.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
+#include "camera_geometry.hpp"
 
-typedef CGAL::Simple_cartesian<double> Kernel;
-typedef CGAL::Surface_mesh<Kernel::Point_3> Mesh;
-typedef Kernel::Point_3 Point_3;
 typedef Kernel::Vector_3 Vector_3;
-typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
-typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
-typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
-typedef Exact_kernel::Point_3 Exact_point_3;
+typedef CGAL::Surface_mesh<Point_3> Surface_mesh;
 
 // Helper function to draw mesh with colors
-void draw_mesh_with_colors(const Mesh& mesh, const char* title) {
+void draw_mesh_with_colors(const Surface_mesh& mesh, const char* title) {
     // Create a copy of the mesh to ensure we don't modify the original
-    Mesh display_mesh = mesh;
+    Surface_mesh display_mesh = mesh;
     
     // Make sure color properties are available
-    if (!display_mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").second) {
-        display_mesh.add_property_map<Mesh::Vertex_index, CGAL::Color>("v:color");
+    if (!display_mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").second) {
+        display_mesh.add_property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color");
     }
-    if (!display_mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").second) {
-        display_mesh.add_property_map<Mesh::Face_index, CGAL::Color>("f:color");
+    if (!display_mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").second) {
+        display_mesh.add_property_map<Surface_mesh::Face_index, CGAL::Color>("f:color");
     }
     
     // Draw with mono color explicitly disabled
     CGAL::draw(display_mesh, title, false);
 }
 
-void add_cylinder_to_mesh(const Point_3& start, const Point_3& end, double radius, const CGAL::Color& color, Mesh& mesh) {
-    auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
-    auto face_color = mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
+void add_cylinder_to_mesh(const Point_3& start, const Point_3& end, double radius, const CGAL::Color& color, Surface_mesh& mesh) {
+    auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
+    auto face_color = mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").first;
     
     // Create a cylinder approximation with 8 sides
     const int num_sides = 8;
@@ -60,7 +55,7 @@ void add_cylinder_to_mesh(const Point_3& start, const Point_3& end, double radiu
     up = up / std::sqrt(up.squared_length()) * radius;
     
     // Create vertices around the start and end points
-    std::vector<Mesh::Vertex_index> start_vertices, end_vertices;
+    std::vector<Surface_mesh::Vertex_index> start_vertices, end_vertices;
     for (int i = 0; i < num_sides; ++i) {
         double angle = 2.0 * M_PI * i / num_sides;
         Vector_3 offset = right * std::cos(angle) + up * std::sin(angle);
@@ -86,7 +81,7 @@ void add_cylinder_to_mesh(const Point_3& start, const Point_3& end, double radiu
     }
 }
 
-void add_vector_to_mesh(const Point_3& start, const Vector_3& direction, double length, double thickness, const CGAL::Color& color, Mesh& mesh) {
+void add_vector_to_mesh(const Point_3& start, const Vector_3& direction, double length, double thickness, const CGAL::Color& color, Surface_mesh& mesh) {
     Point_3 end = start + direction * length;
     add_cylinder_to_mesh(start, end, thickness, color, mesh);
     
@@ -96,8 +91,8 @@ void add_vector_to_mesh(const Point_3& start, const Vector_3& direction, double 
     Point_3 head_start = end - direction * head_length;
     
     // Create cone vertices
-    auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
-    auto face_color = mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
+    auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
+    auto face_color = mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").first;
     
     auto tip = mesh.add_vertex(end);
     vertex_color[tip] = color;
@@ -116,7 +111,7 @@ void add_vector_to_mesh(const Point_3& start, const Vector_3& direction, double 
     
     // Create cone base vertices
     const int num_sides = 8;
-    std::vector<Mesh::Vertex_index> base_vertices;
+    std::vector<Surface_mesh::Vertex_index> base_vertices;
     for (int i = 0; i < num_sides; ++i) {
         double angle = 2.0 * M_PI * i / num_sides;
         Vector_3 offset = right * std::cos(angle) + up * std::sin(angle);
@@ -133,7 +128,7 @@ void add_vector_to_mesh(const Point_3& start, const Vector_3& direction, double 
     }
 }
 
-void add_camera_vectors_to_mesh(const Camera& camera, Mesh& mesh) {
+void add_camera_vectors_to_mesh(const Camera& camera, Surface_mesh& mesh) {
     Point_3 position = camera.getPosition();
     Vector_3 forward = camera.getForwardVector();    // X-axis (forward)
     Vector_3 left = camera.getRightVector();         // Y-axis (left)
@@ -162,8 +157,8 @@ void add_camera_vectors_to_mesh(const Camera& camera, Mesh& mesh) {
 // Comment out the arc drawing function
 /*
 void add_arc_to_mesh(const Point_3& center, const Vector_3& normal, const Vector_3& start_dir, 
-                    double radius, double angle, const CGAL::Color& color, Mesh& mesh) {
-    auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
+                    double radius, double angle, const CGAL::Color& color, Surface_mesh& mesh) {
+    auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
     
     // Create basis vectors for the arc
     Vector_3 right = start_dir / std::sqrt(start_dir.squared_length()) * radius;
@@ -172,7 +167,7 @@ void add_arc_to_mesh(const Point_3& center, const Vector_3& normal, const Vector
     
     // Create arc points
     const int num_segments = 32;
-    std::vector<Mesh::Vertex_index> arc_vertices;
+    std::vector<Surface_mesh::Vertex_index> arc_vertices;
     
     for (int i = 0; i <= num_segments; ++i) {
         double t = angle * i / num_segments;
@@ -203,7 +198,7 @@ void add_arc_to_mesh(const Point_3& center, const Vector_3& normal, const Vector
 
 // Comment out the position and orientation function
 /*
-void add_position_and_orientation_to_mesh(const Camera& camera, Mesh& mesh) {
+void add_position_and_orientation_to_mesh(const Camera& camera, Surface_mesh& mesh) {
     Point_3 position = camera.getPosition();
     
     // Draw rotation arcs for roll, pitch, and yaw
@@ -233,13 +228,13 @@ void add_position_and_orientation_to_mesh(const Camera& camera, Mesh& mesh) {
 }
 */
 
-void add_frustum_to_mesh(const Camera& camera, Mesh& mesh) {
+void add_frustum_to_mesh(const Camera& camera, Surface_mesh& mesh) {
     auto vertices = camera.getFrustumVertices();
     
     // Add vertices to mesh
-    std::vector<Mesh::Vertex_index> v_indices;
-    auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
-    auto face_color = mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
+    std::vector<Surface_mesh::Vertex_index> v_indices;
+    auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
+    auto face_color = mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").first;
     
     // Light transparent blue color
     CGAL::Color frustum_color(100, 100, 255);  // RGB: light blue
@@ -288,13 +283,13 @@ void add_frustum_to_mesh(const Camera& camera, Mesh& mesh) {
     // add_position_and_orientation_to_mesh(camera, mesh);
 }
 
-void add_robot_to_mesh(const Robot& robot, Mesh& mesh) {
+void add_robot_to_mesh(const Robot& robot, Surface_mesh& mesh) {
     auto vertices = robot.getBoundingBoxVertices();
     
     // Add vertices to mesh
-    std::vector<Mesh::Vertex_index> v_indices;
-    auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
-    auto face_color = mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
+    std::vector<Surface_mesh::Vertex_index> v_indices;
+    auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
+    auto face_color = mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").first;
     
     // Solid orange color
     CGAL::Color robot_color(255, 140, 0);  // RGB: orange
@@ -337,143 +332,6 @@ void add_robot_to_mesh(const Robot& robot, Mesh& mesh) {
     face_color[f12] = robot_color;
 }
 
-// Helper class to build polyhedron from vertices and faces
-template <class HDS>
-class Frustum_builder : public CGAL::Modifier_base<HDS> {
-public:
-    std::vector<Exact_point_3> vertices;
-    
-    Frustum_builder(const std::array<Point_3, 8>& points) {
-        // Convert vertices to exact kernel
-        for (const auto& p : points) {
-            vertices.push_back(Exact_point_3(p.x(), p.y(), p.z()));
-        }
-    }
-    
-    void operator()(HDS& hds) {
-        CGAL::Polyhedron_incremental_builder_3<HDS> builder(hds, true);
-        builder.begin_surface(8, 12, 24); // 8 vertices, 12 faces, 24 halfedges
-        
-        // Add vertices
-        for (const auto& v : vertices) {
-            builder.add_vertex(v);
-        }
-        
-        // Add faces (triangles)
-        // Near plane
-        builder.begin_facet(); builder.add_vertex_to_facet(0); builder.add_vertex_to_facet(1); builder.add_vertex_to_facet(2); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(0); builder.add_vertex_to_facet(2); builder.add_vertex_to_facet(3); builder.end_facet();
-        
-        // Far plane
-        builder.begin_facet(); builder.add_vertex_to_facet(4); builder.add_vertex_to_facet(6); builder.add_vertex_to_facet(5); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(4); builder.add_vertex_to_facet(7); builder.add_vertex_to_facet(6); builder.end_facet();
-        
-        // Side faces
-        builder.begin_facet(); builder.add_vertex_to_facet(0); builder.add_vertex_to_facet(4); builder.add_vertex_to_facet(1); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(1); builder.add_vertex_to_facet(4); builder.add_vertex_to_facet(5); builder.end_facet();
-        
-        builder.begin_facet(); builder.add_vertex_to_facet(1); builder.add_vertex_to_facet(5); builder.add_vertex_to_facet(2); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(2); builder.add_vertex_to_facet(5); builder.add_vertex_to_facet(6); builder.end_facet();
-        
-        builder.begin_facet(); builder.add_vertex_to_facet(2); builder.add_vertex_to_facet(6); builder.add_vertex_to_facet(3); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(3); builder.add_vertex_to_facet(6); builder.add_vertex_to_facet(7); builder.end_facet();
-        
-        builder.begin_facet(); builder.add_vertex_to_facet(3); builder.add_vertex_to_facet(7); builder.add_vertex_to_facet(0); builder.end_facet();
-        builder.begin_facet(); builder.add_vertex_to_facet(0); builder.add_vertex_to_facet(7); builder.add_vertex_to_facet(4); builder.end_facet();
-        
-        builder.end_surface();
-    }
-};
-
-double compute_frustum_intersection_volume(const Camera& camera1, const Camera& camera2) {
-    // Get frustum vertices
-    auto vertices1 = camera1.getFrustumVertices();
-    auto vertices2 = camera2.getFrustumVertices();
-    
-    // Create polyhedra for both frustums
-    Polyhedron P1, P2;
-    Frustum_builder<Polyhedron::HalfedgeDS> builder1(vertices1);
-    Frustum_builder<Polyhedron::HalfedgeDS> builder2(vertices2);
-    P1.delegate(builder1);
-    P2.delegate(builder2);
-    
-    // Convert to Nef polyhedra and compute intersection
-    Nef_polyhedron N1(P1);
-    Nef_polyhedron N2(P2);
-    Nef_polyhedron intersection = N1 * N2;  // Intersection
-    
-    // Compute volume of intersection
-    double volume = 0;
-    if (!intersection.is_empty()) {
-        // Convert intersection back to polyhedron
-        Polyhedron intersection_poly;
-        intersection.convert_to_polyhedron(intersection_poly);
-        
-        // Compute volume using CGAL's volume computation
-        volume = CGAL::to_double(CGAL::Polygon_mesh_processing::volume(intersection_poly));
-    }
-    return volume;
-}
-
-// Add this new function before main()
-std::vector<std::pair<std::vector<size_t>, double>> compute_all_intersection_combinations(const std::vector<Camera>& cameras) {
-    std::vector<std::pair<std::vector<size_t>, double>> results;
-    
-    // For each possible number of cameras in combination
-    for (size_t k = 2; k <= cameras.size(); ++k) {
-        // Generate all combinations of k cameras
-        std::vector<bool> combination(cameras.size());
-        std::fill(combination.end() - k, combination.end(), true);
-        
-        do {
-            // Get the indices of cameras in this combination
-            std::vector<size_t> camera_indices;
-            for (size_t i = 0; i < cameras.size(); ++i) {
-                if (combination[i]) {
-                    camera_indices.push_back(i);
-                }
-            }
-            
-            // Convert selected cameras to polyhedra
-            std::vector<Polyhedron> selected_polyhedra;
-            for (size_t idx : camera_indices) {
-                auto vertices = cameras[idx].getFrustumVertices();
-                Polyhedron P;
-                Frustum_builder<Polyhedron::HalfedgeDS> builder(vertices);
-                P.delegate(builder);
-                selected_polyhedra.push_back(P);
-            }
-            
-            // Compute intersection
-            Nef_polyhedron intersection(selected_polyhedra[0]);
-            for (size_t i = 1; i < selected_polyhedra.size(); ++i) {
-                Nef_polyhedron current(selected_polyhedra[i]);
-                intersection = intersection * current;
-            }
-            
-            // Compute volume if intersection exists
-            double volume = 0;
-            if (!intersection.is_empty()) {
-                Polyhedron intersection_poly;
-                intersection.convert_to_polyhedron(intersection_poly);
-                volume = CGAL::to_double(CGAL::Polygon_mesh_processing::volume(intersection_poly));
-                
-                // Store result if volume is significant
-                if (volume > 1e-6) {
-                    results.push_back({camera_indices, volume});
-                }
-            }
-            
-        } while (std::next_permutation(combination.begin(), combination.end()));
-    }
-    
-    // Sort results by volume in descending order
-    std::sort(results.begin(), results.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
-    
-    return results;
-}
-
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
@@ -493,7 +351,7 @@ int main(int argc, char* argv[]) {
             std::cout << "\nComputing intersection volumes for all camera combinations:\n";
             std::cout << "------------------------------------------------\n";
             
-            auto results = compute_all_intersection_combinations(cameras);
+            auto results = CameraGeometry::compute_all_intersection_combinations(cameras);
             
             // Print results
             for (const auto& result : results) {
@@ -529,17 +387,21 @@ int main(int argc, char* argv[]) {
                 }
             }
             
+            // Compute and print total coverage volume
+            double total_coverage = CameraGeometry::compute_total_coverage_volume(cameras);
+            std::cout << "\nTotal volume covered by all cameras (without double counting): " << total_coverage << " cubic meters\n\n";
+
             std::cout << "------------------------------------------------\n";
         }
         
         // Create mesh for visualization
-        Mesh mesh;
+        Surface_mesh mesh;
         
         // Add vertex color property map
-        mesh.add_property_map<Mesh::Vertex_index, CGAL::Color>("v:color");
+        mesh.add_property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color");
         
         // Add face color property map
-        mesh.add_property_map<Mesh::Face_index, CGAL::Color>("f:color");
+        mesh.add_property_map<Surface_mesh::Face_index, CGAL::Color>("f:color");
         
         // Add robot first (so it's rendered behind transparent elements)
         add_robot_to_mesh(config_reader.getRobot(), mesh);
