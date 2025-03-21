@@ -21,6 +21,23 @@ typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
 typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
 typedef Exact_kernel::Point_3 Exact_point_3;
 
+// Helper function to draw mesh with colors
+void draw_mesh_with_colors(const Mesh& mesh, const char* title) {
+    // Create a copy of the mesh to ensure we don't modify the original
+    Mesh display_mesh = mesh;
+    
+    // Make sure color properties are available
+    if (!display_mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").second) {
+        display_mesh.add_property_map<Mesh::Vertex_index, CGAL::Color>("v:color");
+    }
+    if (!display_mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").second) {
+        display_mesh.add_property_map<Mesh::Face_index, CGAL::Color>("f:color");
+    }
+    
+    // Draw with mono color explicitly disabled
+    CGAL::draw(display_mesh, title, false);
+}
+
 void add_cylinder_to_mesh(const Point_3& start, const Point_3& end, double radius, const CGAL::Color& color, Mesh& mesh) {
     auto vertex_color = mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
     auto face_color = mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
@@ -532,7 +549,10 @@ int main(int argc, char* argv[]) {
             add_frustum_to_mesh(camera, mesh);
         }
         
-        // Display the mesh with mono color set to false
+        // Display the mesh with mono color explicitly set to false
+        std::cout << "Opening visualization window with colored elements..." << std::endl;
+        
+        // Draw the mesh with colors directly
         CGAL::draw(mesh, "Camera Poses Visualization", false);
         
     } catch (const std::exception& e) {
