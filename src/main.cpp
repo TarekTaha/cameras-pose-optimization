@@ -181,6 +181,25 @@ double compute_intersection_volume(const Mesh& mesh1, const Mesh& mesh2) {
     return CGAL::Polygon_mesh_processing::volume(intersection);
 }
 
+// Function to compute total volume covered by all cameras without double counting overlaps
+double compute_total_coverage_volume(const std::vector<Mesh>& camera_frustums) {
+    if (camera_frustums.empty()) {
+        return 0.0;
+    }
+
+    // Start with the first camera's volume
+    Mesh union_mesh = camera_frustums[0];
+    
+    // Iteratively add each camera's volume using boolean union operation
+    for (size_t i = 1; i < camera_frustums.size(); ++i) {
+        Mesh temp_union;
+        CGAL::Polygon_mesh_processing::corefine_and_compute_union(union_mesh, camera_frustums[i], temp_union);
+        union_mesh = temp_union;
+    }
+
+    return CGAL::Polygon_mesh_processing::volume(union_mesh);
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <config_file.yaml>" << std::endl;
@@ -245,9 +264,13 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+
+    // Calculate total coverage volume
+    double total_coverage = compute_total_coverage_volume(camera_frustums);
     
     std::cout << "\nSummary:" << std::endl;
-    std::cout << "Largest overlap: " << largest_overlap << " cubic meters" << std::endl;
+    std::cout << "Total volume covered (without double counting): " << total_coverage << " cubic meters" << std::endl;
+    std::cout << "Largest overlap between any two cameras: " << largest_overlap << " cubic meters" << std::endl;
     std::cout << "Number of overlapping regions: " << overlapping_regions << " (for 2 cameras)" << std::endl;
 
     // Draw the first camera frustum with colors
