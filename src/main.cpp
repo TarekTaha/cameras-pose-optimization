@@ -228,16 +228,23 @@ void add_position_and_orientation_to_mesh(const Camera& camera, Surface_mesh& me
 }
 */
 
+void add_edge_to_mesh(Surface_mesh& mesh, Surface_mesh::Vertex_index v1, Surface_mesh::Vertex_index v2, 
+                     double thickness, const CGAL::Color& color) {
+    Point_3 p1 = mesh.point(v1);
+    Point_3 p2 = mesh.point(v2);
+    add_cylinder_to_mesh(p1, p2, thickness, color, mesh);
+}
+
 void add_frustum_to_mesh(const Camera& camera, Surface_mesh& mesh) {
     auto vertices = camera.getFrustumVertices();
     
     // Add vertices to mesh
     std::vector<Surface_mesh::Vertex_index> v_indices;
     auto vertex_color = mesh.property_map<Surface_mesh::Vertex_index, CGAL::Color>("v:color").first;
-    auto face_color = mesh.property_map<Surface_mesh::Face_index, CGAL::Color>("f:color").first;
     
     // Light transparent blue color
     CGAL::Color frustum_color(100, 100, 255);  // RGB: light blue
+    double edge_thickness = 0.02;  // Thickness of wireframe edges
     
     for (const auto& point : vertices) {
         auto v = mesh.add_vertex(point);
@@ -245,42 +252,26 @@ void add_frustum_to_mesh(const Camera& camera, Surface_mesh& mesh) {
         v_indices.push_back(v);
     }
     
-    // Add faces for near plane
-    auto f1 = mesh.add_face(v_indices[0], v_indices[1], v_indices[2]);
-    auto f2 = mesh.add_face(v_indices[0], v_indices[2], v_indices[3]);
-    face_color[f1] = frustum_color;
-    face_color[f2] = frustum_color;
+    // Add edges for near plane (square)
+    add_edge_to_mesh(mesh, v_indices[0], v_indices[1], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[1], v_indices[2], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[2], v_indices[3], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[3], v_indices[0], edge_thickness, frustum_color);
     
-    // Add faces for far plane
-    auto f3 = mesh.add_face(v_indices[4], v_indices[6], v_indices[5]);
-    auto f4 = mesh.add_face(v_indices[4], v_indices[7], v_indices[6]);
-    face_color[f3] = frustum_color;
-    face_color[f4] = frustum_color;
+    // Add edges for far plane (square)
+    add_edge_to_mesh(mesh, v_indices[4], v_indices[5], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[5], v_indices[6], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[6], v_indices[7], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[7], v_indices[4], edge_thickness, frustum_color);
     
-    // Add faces for sides
-    auto f5 = mesh.add_face(v_indices[0], v_indices[4], v_indices[1]);
-    auto f6 = mesh.add_face(v_indices[1], v_indices[4], v_indices[5]);
-    auto f7 = mesh.add_face(v_indices[1], v_indices[5], v_indices[2]);
-    auto f8 = mesh.add_face(v_indices[2], v_indices[5], v_indices[6]);
-    auto f9 = mesh.add_face(v_indices[2], v_indices[6], v_indices[3]);
-    auto f10 = mesh.add_face(v_indices[3], v_indices[6], v_indices[7]);
-    auto f11 = mesh.add_face(v_indices[3], v_indices[7], v_indices[0]);
-    auto f12 = mesh.add_face(v_indices[0], v_indices[7], v_indices[4]);
-    
-    face_color[f5] = frustum_color;
-    face_color[f6] = frustum_color;
-    face_color[f7] = frustum_color;
-    face_color[f8] = frustum_color;
-    face_color[f9] = frustum_color;
-    face_color[f10] = frustum_color;
-    face_color[f11] = frustum_color;
-    face_color[f12] = frustum_color;
+    // Add edges connecting near and far planes (forming the frustum)
+    add_edge_to_mesh(mesh, v_indices[0], v_indices[4], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[1], v_indices[5], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[2], v_indices[6], edge_thickness, frustum_color);
+    add_edge_to_mesh(mesh, v_indices[3], v_indices[7], edge_thickness, frustum_color);
     
     // Add camera coordinate system and position vectors
     add_camera_vectors_to_mesh(camera, mesh);
-    
-    // Remove rotation visualization
-    // add_position_and_orientation_to_mesh(camera, mesh);
 }
 
 void add_robot_to_mesh(const Robot& robot, Surface_mesh& mesh) {
@@ -348,50 +339,7 @@ int main(int argc, char* argv[]) {
         
         // Calculate intersections for all combinations
         if (cameras.size() >= 2) {
-            std::cout << "\nComputing intersection volumes for all camera combinations:\n";
-            std::cout << "------------------------------------------------\n";
-            
-            auto results = CameraGeometry::compute_all_intersection_combinations(cameras);
-            
-            // Print results
-            for (const auto& result : results) {
-                std::cout << "Cameras ";
-                for (size_t i = 0; i < result.first.size(); ++i) {
-                    std::cout << (result.first[i] + 1);
-                    if (i < result.first.size() - 1) std::cout << ", ";
-                }
-                std::cout << ": " << result.second << " cubic meters\n";
-            }
-            
-            // Print summary statistics
-            if (!results.empty()) {
-                std::cout << "\nSummary:\n";
-                std::cout << "- Largest overlap: " << results.front().second << " cubic meters (Cameras ";
-                for (size_t i = 0; i < results.front().first.size(); ++i) {
-                    std::cout << (results.front().first[i] + 1);
-                    if (i < results.front().first.size() - 1) std::cout << ", ";
-                }
-                std::cout << ")\n";
-                
-                std::cout << "- Number of overlapping regions: " << results.size() << "\n";
-                
-                // Count overlaps by number of cameras
-                std::map<size_t, int> overlaps_by_count;
-                for (const auto& result : results) {
-                    overlaps_by_count[result.first.size()]++;
-                }
-                
-                std::cout << "- Breakdown by number of cameras:\n";
-                for (const auto& [num_cameras, count] : overlaps_by_count) {
-                    std::cout << "  " << num_cameras << " cameras: " << count << " overlapping regions\n";
-                }
-            }
-            
-            // Compute and print total coverage volume
-            double total_coverage = CameraGeometry::compute_total_coverage_volume(cameras);
-            std::cout << "\nTotal volume covered by all cameras (without double counting): " << total_coverage << " cubic meters\n\n";
-
-            std::cout << "------------------------------------------------\n";
+            CameraGeometry::print_intersection_summary(cameras);
         }
         
         // Create mesh for visualization
