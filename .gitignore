@@ -1,3 +1,6 @@
+# Prerequisites
+*.d
+
 # Build artifacts
 /build/
 /bin/
@@ -26,6 +29,10 @@ Makefile
 *.dylib
 *.dll
 
+# Fortran module files
+*.mod
+*.smod
+
 # Compiled Static libraries
 *.lai
 *.la
@@ -52,4 +59,14 @@ cameras_optimizer
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Build directories
+build/
+cmake-build-*/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*~ 

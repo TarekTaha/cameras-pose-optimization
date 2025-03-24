@@ -5,61 +5,80 @@
 #include <iostream>
 
 typedef CGAL::Simple_cartesian<double> Kernel;
-typedef Kernel::Point_3 Point;
-typedef CGAL::Surface_mesh<Point> Mesh;
-typedef boost::graph_traits<Mesh>::vertex_descriptor vertex_descriptor;
-typedef boost::graph_traits<Mesh>::face_descriptor face_descriptor;
+typedef CGAL::Surface_mesh<Kernel::Point_3> Mesh;
+typedef Kernel::Point_3 Point_3;
 
-// Function to draw a mesh with colors
-void draw_mesh_with_colors(Mesh& mesh) {
-    // Add vertex color property
-    auto vertex_color = mesh.add_property_map<vertex_descriptor, CGAL::Color>("v:color", CGAL::Color(0, 0, 0)).first;
+// Helper function to draw mesh with colors
+void draw_mesh_with_colors(const Mesh& mesh, const char* title) {
+    // Create a copy of the mesh to ensure we don't modify the original
+    Mesh display_mesh = mesh;
     
-    // Add face color property
-    auto face_color = mesh.add_property_map<face_descriptor, CGAL::Color>("f:color", CGAL::Color(0, 0, 0)).first;
-
-    // Set vertex colors to red
-    for(vertex_descriptor vd : mesh.vertices()) {
-        put(vertex_color, vd, CGAL::Color(255, 0, 0));
+    // Make sure color properties are available
+    if (!display_mesh.property_map<Mesh::Vertex_index, CGAL::Color>("v:color").second) {
+        display_mesh.add_property_map<Mesh::Vertex_index, CGAL::Color>("v:color");
     }
-
-    // Set face colors to blue
-    for(face_descriptor fd : mesh.faces()) {
-        put(face_color, fd, CGAL::Color(0, 0, 255));
+    if (!display_mesh.property_map<Mesh::Face_index, CGAL::Color>("f:color").second) {
+        display_mesh.add_property_map<Mesh::Face_index, CGAL::Color>("f:color");
     }
-
-    // Draw the mesh with colors
-    CGAL::draw(mesh);
+    
+    // Draw with mono color explicitly disabled
+    CGAL::draw(display_mesh, title, false);
 }
 
-int main() {
-    // Create a simple cube mesh
+int main(int argc, char* argv[]) {
+    // Create a simple colored mesh
     Mesh mesh;
     
-    // Add vertices
-    vertex_descriptor v0 = mesh.add_vertex(Point(0, 0, 0));
-    vertex_descriptor v1 = mesh.add_vertex(Point(1, 0, 0));
-    vertex_descriptor v2 = mesh.add_vertex(Point(1, 1, 0));
-    vertex_descriptor v3 = mesh.add_vertex(Point(0, 1, 0));
-    vertex_descriptor v4 = mesh.add_vertex(Point(0, 0, 1));
-    vertex_descriptor v5 = mesh.add_vertex(Point(1, 0, 1));
-    vertex_descriptor v6 = mesh.add_vertex(Point(1, 1, 1));
-    vertex_descriptor v7 = mesh.add_vertex(Point(0, 1, 1));
-
-    // Add faces
-    mesh.add_face(v0, v1, v2, v3); // bottom
-    mesh.add_face(v4, v7, v6, v5); // top
-    mesh.add_face(v0, v4, v5, v1); // front
-    mesh.add_face(v1, v5, v6, v2); // right
-    mesh.add_face(v2, v6, v7, v3); // back
-    mesh.add_face(v3, v7, v4, v0); // left
-
-    std::cout << "Created a cube with " << mesh.number_of_vertices() << " vertices and "
-              << mesh.number_of_faces() << " faces." << std::endl;
-    std::cout << "Setting vertex colors to pure red (255, 0, 0) and face colors to pure blue (0, 0, 255)" << std::endl;
-
-    // Draw the mesh with colors
-    draw_mesh_with_colors(mesh);
-
+    // Add vertex color property map
+    auto vertex_color = mesh.add_property_map<Mesh::Vertex_index, CGAL::Color>("v:color").first;
+    
+    // Add face color property map
+    auto face_color = mesh.add_property_map<Mesh::Face_index, CGAL::Color>("f:color").first;
+    
+    // Create a simple cube with more distinct colors
+    auto v0 = mesh.add_vertex(Point_3(-1, -1, -1));
+    auto v1 = mesh.add_vertex(Point_3(1, -1, -1));
+    auto v2 = mesh.add_vertex(Point_3(1, 1, -1));
+    auto v3 = mesh.add_vertex(Point_3(-1, 1, -1));
+    auto v4 = mesh.add_vertex(Point_3(-1, -1, 1));
+    auto v5 = mesh.add_vertex(Point_3(1, -1, 1));
+    auto v6 = mesh.add_vertex(Point_3(1, 1, 1));
+    auto v7 = mesh.add_vertex(Point_3(-1, 1, 1));
+    
+    // Set different colors for vertices with full intensity
+    vertex_color[v0] = CGAL::Color(255, 0, 0);     // Pure Red
+    vertex_color[v1] = CGAL::Color(0, 255, 0);     // Pure Green
+    vertex_color[v2] = CGAL::Color(0, 0, 255);     // Pure Blue
+    vertex_color[v3] = CGAL::Color(255, 255, 0);   // Pure Yellow
+    vertex_color[v4] = CGAL::Color(255, 0, 255);   // Pure Magenta
+    vertex_color[v5] = CGAL::Color(0, 255, 255);   // Pure Cyan
+    vertex_color[v6] = CGAL::Color(255, 128, 0);   // Pure Orange
+    vertex_color[v7] = CGAL::Color(128, 0, 255);   // Pure Purple
+    
+    // Create faces with different colors
+    auto f1 = mesh.add_face(v0, v1, v2, v3); // Bottom
+    auto f2 = mesh.add_face(v4, v7, v6, v5); // Top
+    auto f3 = mesh.add_face(v0, v4, v5, v1); // Front
+    auto f4 = mesh.add_face(v1, v5, v6, v2); // Right
+    auto f5 = mesh.add_face(v2, v6, v7, v3); // Back
+    auto f6 = mesh.add_face(v3, v7, v4, v0); // Left
+    
+    // Set face colors with full intensity
+    face_color[f1] = CGAL::Color(255, 0, 0);     // Pure Red
+    face_color[f2] = CGAL::Color(0, 255, 0);     // Pure Green
+    face_color[f3] = CGAL::Color(0, 0, 255);     // Pure Blue
+    face_color[f4] = CGAL::Color(255, 255, 0);   // Pure Yellow
+    face_color[f5] = CGAL::Color(255, 0, 255);   // Pure Magenta
+    face_color[f6] = CGAL::Color(0, 255, 255);   // Pure Cyan
+    
+    std::cout << "Testing CGAL color visualization..." << std::endl;
+    std::cout << "- Created cube with " << mesh.number_of_vertices() << " vertices and "
+              << mesh.number_of_faces() << " faces" << std::endl;
+    std::cout << "- Vertex and face colors set to pure RGB values" << std::endl;
+    
+    // Draw the mesh with colors directly
+    std::cout << "Drawing with mono_color=false..." << std::endl;
+    CGAL::draw(mesh, "Color Test - Mono Color Disabled", false);
+    
     return 0;
-}
+} 

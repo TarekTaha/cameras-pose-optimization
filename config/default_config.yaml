@@ -17,6 +17,15 @@ cameras:
     vfov: 60.0   # vertical field of view in degrees
     near_plane: 0.5  # near plane in meters
     far_plane: 4.0   # far plane in meters
+  - position: [-1.0, 0.0, 0.0]  # x, y, z in meters
+    orientation:
+      roll: 0.0   # rotation around X-axis in radians
+      pitch: 0.0  # rotation around Y-axis in radians
+      yaw: 3.14   # rotation around Z-axis in radians
+    hfov: 120.0  # horizontal field of view in degrees
+    vfov: 60.0   # vertical field of view in degrees
+    near_plane: 0.5  # near plane in meters
+    far_plane: 4.0   # far plane in meters    
 
 robot:
   position: [0.0, 0.0, 0.0]  # x, y, z in meters
