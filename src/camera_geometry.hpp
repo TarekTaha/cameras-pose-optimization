@@ -25,6 +25,7 @@ public:
     static double compute_frustum_intersection_volume(const Camera& camera1, const Camera& camera2);
     static double compute_total_coverage_volume(const std::vector<Camera>& cameras);
     static std::vector<std::pair<std::vector<size_t>, double>> compute_all_intersection_combinations(const std::vector<Camera>& cameras);
+    static void print_intersection_summary(const std::vector<Camera>& cameras);
     
     // Make helper function available to test program
     static double estimate_frustum_volume(const std::vector<Point_3>& vertices) {

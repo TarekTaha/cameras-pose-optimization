@@ -12,7 +12,7 @@ cameras:
     orientation:
       roll: 0.0   # rotation around X-axis in radians
       pitch: 0.0  # rotation around Y-axis in radians
-      yaw: -1.7   # rotation around Z-axis in radians
+      yaw: -1.57079632679  # rotation around Z-axis in radians
     hfov: 120.0  # horizontal field of view in degrees
     vfov: 60.0   # vertical field of view in degrees
     near_plane: 0.5  # near plane in meters

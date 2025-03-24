@@ -281,4 +281,55 @@ std::vector<std::pair<std::vector<size_t>, double>> CameraGeometry::compute_all_
         std::cerr << "Error computing intersection combinations: " << e.what() << std::endl;
         return results;
     }
+}
+
+void CameraGeometry::print_intersection_summary(const std::vector<Camera>& cameras) {
+    if (cameras.size() < 2) {
+        return;  // Nothing to do with less than 2 cameras
+    }
+    
+    std::cout << "\nComputing intersection volumes for all camera combinations:\n";
+    std::cout << "------------------------------------------------\n";
+    
+    auto results = compute_all_intersection_combinations(cameras);
+    
+    // Print results
+    for (const auto& result : results) {
+        std::cout << "Cameras ";
+        for (size_t i = 0; i < result.first.size(); ++i) {
+            std::cout << (result.first[i] + 1);
+            if (i < result.first.size() - 1) std::cout << ", ";
+        }
+        std::cout << ": " << result.second << " cubic meters\n";
+    }
+    
+    // Print summary statistics
+    if (!results.empty()) {
+        std::cout << "\nSummary:\n";
+        std::cout << "- Largest overlap: " << results.front().second << " cubic meters (Cameras ";
+        for (size_t i = 0; i < results.front().first.size(); ++i) {
+            std::cout << (results.front().first[i] + 1);
+            if (i < results.front().first.size() - 1) std::cout << ", ";
+        }
+        std::cout << ")\n";
+        
+        std::cout << "- Number of overlapping regions: " << results.size() << "\n";
+        
+        // Count overlaps by number of cameras
+        std::map<size_t, int> overlaps_by_count;
+        for (const auto& result : results) {
+            overlaps_by_count[result.first.size()]++;
+        }
+        
+        std::cout << "- Breakdown by number of cameras:\n";
+        for (const auto& [num_cameras, count] : overlaps_by_count) {
+            std::cout << "  " << num_cameras << " cameras: " << count << " overlapping regions\n";
+        }
+    }
+    
+    // Compute and print total coverage volume
+    double total_coverage = compute_total_coverage_volume(cameras);
+    std::cout << "\nTotal volume covered by all cameras (without double counting): " << total_coverage << " cubic meters\n\n";
+
+    std::cout << "------------------------------------------------\n";
 } 

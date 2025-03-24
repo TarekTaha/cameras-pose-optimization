@@ -8,6 +8,7 @@ set(CMAKE_BUILD_TYPE Release)
 # Find required packages
 find_package(CGAL REQUIRED COMPONENTS Qt5)
 find_package(yaml-cpp REQUIRED)
+find_package(GTest REQUIRED)
 
 # Enable CGAL viewer
 if(CGAL_Qt5_FOUND)
@@ -22,6 +23,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CGAL_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIR}
+    ${GTEST_INCLUDE_DIRS}
 )
 
 # Create a list of source files
@@ -53,4 +55,7 @@ target_link_libraries(volume_test PRIVATE
     CGAL::CGAL
     CGAL::CGAL_Qt5
     yaml-cpp
+    GTest::GTest
+    GTest::Main
+    pthread
 ) 
